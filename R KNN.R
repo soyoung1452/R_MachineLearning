@@ -85,7 +85,71 @@ getwd()
 setwd("C:/Users/sypar/Desktop/git/데이터_실습/Machine Learning with R (2nd Ed.)/Chapter 03")
 
 # 1단계 : 데이터 수집
+# csv 파일 불러오기
+data <- read.csv("wisc_bc_data.csv", stringsAsFactors = F)
+
 # 2단계 : 데이터 탐색과 준비
+# 데이터 구조 (observation/variable 갯수 확인 및 변수 타입 확인)
+str(data)
+# 불필요한 데이터 삭제
+data <- data[-1]  ## 첫번째 변수 삭제제
+# 특정 변수의 빈도 확인
+table(data$diagnosis)
+# 데이터 타입 변경
+# 대부분 R 머신러닝 분류기의 경우 target 변수가 factor로 코딩되어야 한다.
+data$diagnosis <- factor(data$diagnosis, levels = c("B", "M"), labels = c("Benign", "Malignant"))
+# 특정 변수의 비율 확인
+round(prop.table(table(data$diagnosis))*100, digits = 1)
+# 변수 요약 통계량
+summary(data)
+# 변환 : 수치 데이터 정규화
+# 정규화 함수
+normalize <- function(x){
+  return ((x - min(x))/(max(x) - min(x)))
+}
+# lapply() : 각 리스트 항목에 지정된 함수를 적용 -> 리스트 반환
+data_normal <- as.data.frame(lapply(data[2:31], normalize))
+# 데이터 준비 : 훈련 및 테스트 데이터셋 생성
+# 무작위로 생성된 데이터 셋의 경우
+data_train <- data_normal[1:469, ]
+data_test <- data_normal[470:569, ]
+# 타켓 변수 데이트 세트 생성
+data_train_labels <- data[1:469, 1]
+data_test_labels <- data[470:569, 1]
+
 # 3단계 : 데이터 모델로 훈련
+# knn 알고리즘은 훈련 단계에서 모델을 실제로 구축하지 않는다. 
+# 게으른 학습자를 훈련하는 과정은 단순히 입력 데이터를 구조화된 형식으로 저장하는 것이다.
+# class : 분류를 위한 기본 R 함수들을 제공하는 패키지
+install.packages("class")
+library(class)
+# md <- knn(train, test, class, k)
+# 469 제곱근인 21로 k값 설정
+data_md_pred <- knn(train = data_train, test = data_test, cl = data_train_labels, k = 21)
+
 # 4단계 : 모델 성능 평가
-# 5단계 : 모델 성능 개선선
+# data_md_pred 벡터에 있는 예측된 클래스가 data_test_lables 벡터에 있는 알려진 값과 얼마나 일치하는가를 평가하는 것
+install.packages("gmodels")
+library(gmodels)
+CrossTable(x = data_test_labels, y = data_md_pred, prop.chisq = F)   # 카이제곱값 출력 X
+
+
+# 5단계 : 모델 성능 개선
+# 수치 특징 재조정
+# 변환 : z-점수 표준화 (내장함수 scale())
+# 전통적으로 normalization이 knn 분류기에 사용
+# 이상치에 좀 더 큰 가중치를 주는 것이 합리적인 경우 z-점수 표준화가  예측 정확성을 향상할 수 있을지 확인해보는 것 이 좋다
+data_z <- as.data.frame(scale(data[-1]))
+# 분석 수행
+data_train <- data_z[1:469, ]; data_train_labels <- data[1:469, 1]
+data_test <- data_z[470:569, ]; data_test_labels <- data[470:569, 1]
+data_md_pred <- knn(data_train, data_test, data_train_labels, k = 21)
+CrossTable(data_test_labels, data_md_pred, prop.chisq = F)
+# k 대체 값 테스트
+# 다양한 k값으로 성능을 검사해 더 좋은 결과를 얻을 수 있다.
+
+
+
+
+
+
